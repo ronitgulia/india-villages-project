@@ -1,100 +1,127 @@
-// Import libraries
-const express = require("express");
-const Database = require("better-sqlite3");
-const cors = require("cors");
+require("dotenv").config()
+const express = require("express")
+const { Pool } = require("pg")
+const cors = require("cors")
 
-// Create the app
-const app  = express();
-const PORT = 3001;
+const app  = express()
+const PORT = process.env.PORT || 3001
 
-// Connect to our database
-const db = new Database("india_villages.db");
+// Connect to NeonDB
+const db = new Pool({
+    connectionString: process.env.DATABASE_URL,
+    ssl: { rejectUnauthorized: false }
+})
 
-// Allow frontend to talk to backend
-app.use(cors());
-app.use(express.json());
+app.use(cors())
+app.use(express.json())
 
 // ── ROUTE 1: Health check ─────────────────────────────────
-// Visit: http://localhost:3001/api/health
-app.get("/api/health", (req, res) => {
-    const count = db.prepare("SELECT COUNT(*) as c FROM villages").get();
+app.get("/api/health", async (req, res) => {
+    const result = await db.query("SELECT COUNT(*) FROM villages")
     res.json({
         status: "ok",
-        total_villages: count.c
-    });
-});
+        total_villages: result.rows[0].count
+    })
+})
 
 // ── ROUTE 2: Get all states ───────────────────────────────
-// Visit: http://localhost:3001/api/states
-app.get("/api/states", (req, res) => {
-    const states = db.prepare(`
-        SELECT DISTINCT state_name
+app.get("/api/states", async (req, res) => {
+    const result = await db.query(`
+        SELECT DISTINCT state_name, state_code
         FROM villages
         ORDER BY state_name
-    `).all();
-    res.json(states);
-});
+    `)
+    res.json({
+        total: result.rows.length,
+        states: result.rows
+    })
+})
 
-// ── ROUTE 3: Get villages by state ────────────────────────
-// Visit: http://localhost:3001/api/villages?state=Rajasthan
-app.get("/api/villages", (req, res) => {
-    const state = req.query.state;
-
-    const villages = db.prepare(`
-        SELECT village_name, district_name, subdistrict_name, state_name
+// ── ROUTE 3: Get districts by state ──────────────────────
+app.get("/api/districts", async (req, res) => {
+    const { state } = req.query
+    if (!state) {
+        return res.json({ error: "Please provide state name. Example: /api/districts?state=Rajasthan" })
+    }
+    const result = await db.query(`
+        SELECT DISTINCT district_name, district_code
         FROM villages
-        WHERE state_name = ?
-        ORDER BY village_name
-        LIMIT 100
-    `).all(state);
-
+        WHERE state_name = $1
+        ORDER BY district_name
+    `, [state])
     res.json({
         state: state,
-        total: villages.length,
-        villages: villages
-    });
-});
+        total: result.rows.length,
+        districts: result.rows
+    })
+})
 
-// Start the server
-// ── ROUTE 4: Search villages by name ─────────────────────
-// Visit: http://localhost:3001/api/search?name=Rampur
-app.get("/api/search", (req, res) => {
-    const name = req.query.name;
-
-    if (!name) {
-        return res.json({ error: "Please provide a name. Example: /api/search?name=Rampur" });
+// ── ROUTE 4: Get villages by state ────────────────────────
+app.get("/api/villages", async (req, res) => {
+    const { state, district, limit = 100 } = req.query
+    if (!state) {
+        return res.json({ error: "Please provide state. Example: /api/villages?state=Rajasthan" })
     }
 
-    const results = db.prepare(`
+    let query = `
         SELECT village_name, subdistrict_name, district_name, state_name
         FROM villages
-        WHERE village_name LIKE ?
+        WHERE state_name = $1
+    `
+    const params = [state]
+
+    if (district) {
+        query += ` AND district_name = $2`
+        params.push(district)
+    }
+
+    query += ` ORDER BY village_name LIMIT $${params.length + 1}`
+    params.push(parseInt(limit))
+
+    const result = await db.query(query, params)
+    res.json({
+        state: state,
+        total: result.rows.length,
+        villages: result.rows
+    })
+})
+
+// ── ROUTE 5: Search villages by name ─────────────────────
+app.get("/api/search", async (req, res) => {
+    const { name } = req.query
+    if (!name) {
+        return res.json({ error: "Please provide name. Example: /api/search?name=Rampur" })
+    }
+    const result = await db.query(`
+        SELECT village_name, subdistrict_name, district_name, state_name
+        FROM villages
+        WHERE village_name ILIKE $1
         ORDER BY village_name
         LIMIT 50
-    `).all(`%${name}%`);
-
+    `, [`%${name}%`])
     res.json({
         search: name,
-        total_found: results.length,
-        results: results
-    });
-});
+        total_found: result.rows.length,
+        results: result.rows
+    })
+})
 
-// ── ROUTE 5: Village count per state ─────────────────────
-// Visit: http://localhost:3001/api/stats
-app.get("/api/stats", (req, res) => {
-    const stats = db.prepare(`
+// ── ROUTE 6: Stats ────────────────────────────────────────
+app.get("/api/stats", async (req, res) => {
+    const result = await db.query(`
         SELECT state_name, COUNT(*) as village_count
         FROM villages
         GROUP BY state_name
         ORDER BY village_count DESC
-    `).all();
-
+    `)
     res.json({
-        total_states: stats.length,
-        data: stats
-    });
-});
+        total_states: result.rows.length,
+        data: result.rows
+    })
+})
+
+// Start server
 app.listen(PORT, () => {
-    console.log(`Server running at http://localhost:${PORT}`);
-});
+    console.log(`🚀 Server running at http://localhost:${PORT}`)
+    console.log(`   Connected to NeonDB (PostgreSQL)`)
+})
