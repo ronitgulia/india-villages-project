@@ -14,6 +14,10 @@ const db = new Pool({
 
 app.use(cors())
 app.use(express.json())
+const authRoutes = require("./auth")
+app.use("/api/auth", authRoutes)
+const keyRoutes = require("./apikeys")
+app.use("/api/keys", keyRoutes)
 
 // ── ROUTE 1: Health check ─────────────────────────────────
 app.get("/api/health", async (req, res) => {
@@ -121,6 +125,18 @@ app.get("/api/stats", async (req, res) => {
 })
 
 // Start server
+// ── ADMIN: Get all users ──────────────────────────────────
+app.get("/api/admin/users", async (req, res) => {
+    const result = await db.query(`
+        SELECT u.id, u.name, u.email, u.plan, u.status, u.created_at,
+               COUNT(k.id) as api_keys
+        FROM users u
+        LEFT JOIN api_keys k ON k.user_id = u.id
+        GROUP BY u.id
+        ORDER BY u.created_at DESC
+    `)
+    res.json({ success: true, users: result.rows })
+})
 app.listen(PORT, () => {
     console.log(`🚀 Server running at http://localhost:${PORT}`)
     console.log(`   Connected to NeonDB (PostgreSQL)`)
