@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react"
 import axios from "axios"
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from "recharts"
+import DemoForm from "./DemoForm"
 
 const API = "https://india-villages-project-h4ou.vercel.app"
 
@@ -13,7 +14,12 @@ function App() {
   const [states, setStates]     = useState([])
   const [villages, setVillages] = useState([])
   const [activeTab, setActiveTab] = useState("dashboard")
-
+  const [users, setUsers]         = useState([])
+  const [token, setToken]         = useState(localStorage.getItem("token") || "")
+  const [isLoggedIn, setIsLoggedIn] = useState(!!localStorage.getItem("token"))
+  const [loginEmail, setLoginEmail] = useState("")
+  const [loginPassword, setLoginPassword] = useState("")
+  const [loginError, setLoginError] = useState("")
   // Load stats when page opens
   useEffect(() => {
     loadStats()
@@ -51,6 +57,35 @@ function App() {
   }
 
   // Styles
+  const handleLogin = async () => {
+    try {
+        const res = await axios.post(`${API}/api/auth/login`, {
+            email: loginEmail,
+            password: loginPassword
+        })
+        if (res.data.success) {
+            localStorage.setItem("token", res.data.token)
+            setToken(res.data.token)
+            setIsLoggedIn(true)
+            setLoginError("")
+        }
+    } catch (error) {
+        setLoginError("Invalid email or password")
+    }
+}
+
+const loadUsers = async () => {
+    const res = await axios.get(`${API}/api/admin/users`, {
+        headers: { Authorization: `Bearer ${token}` }
+    })
+    setUsers(res.data.users)
+}
+
+const handleLogout = () => {
+    localStorage.removeItem("token")
+    setToken("")
+    setIsLoggedIn(false)
+}
   const tabStyle = (tab) => ({
     padding: "10px 25px",
     marginRight: "10px",
@@ -76,6 +111,8 @@ function App() {
         <button style={tabStyle("dashboard")} onClick={() => setActiveTab("dashboard")}>📊 Dashboard</button>
         <button style={tabStyle("browse")}    onClick={() => setActiveTab("browse")}>🗺️ Browse</button>
         <button style={tabStyle("search")}    onClick={() => setActiveTab("search")}>🔍 Search</button>
+        <button style={tabStyle("admin")} onClick={() => { setActiveTab("admin"); loadUsers() }}>⚙️ Admin</button>
+        <button style={tabStyle("demo")} onClick={() => setActiveTab("demo")}>📝 Demo Form</button>
       </div>
 
       {/* ── DASHBOARD TAB ── */}
@@ -209,7 +246,86 @@ function App() {
           )}
         </div>
       )}
+    {/* ── ADMIN TAB ── */}
+{activeTab === "admin" && (
+    <div>
+        {!isLoggedIn ? (
+            <div style={{ maxWidth: "400px", margin: "0 auto", backgroundColor: "white", padding: "30px", borderRadius: "10px", boxShadow: "0 2px 10px rgba(0,0,0,0.1)" }}>
+                <h2 style={{ marginTop: 0 }}>⚙️ Admin Login</h2>
+                <input
+                    type="email"
+                    placeholder="Email"
+                    value={loginEmail}
+                    onChange={(e) => setLoginEmail(e.target.value)}
+                    style={{ width: "100%", padding: "10px", marginBottom: "10px", borderRadius: "5px", border: "1px solid #ddd", fontSize: "16px" }}
+                />
+                <input
+                    type="password"
+                    placeholder="Password"
+                    value={loginPassword}
+                    onChange={(e) => setLoginPassword(e.target.value)}
+                    style={{ width: "100%", padding: "10px", marginBottom: "10px", borderRadius: "5px", border: "1px solid #ddd", fontSize: "16px" }}
+                />
+                {loginError && <p style={{ color: "red" }}>{loginError}</p>}
+                <button
+                    onClick={handleLogin}
+                    style={{ width: "100%", padding: "10px", backgroundColor: "#2c3e50", color: "white", border: "none", borderRadius: "5px", cursor: "pointer", fontSize: "16px" }}
+                >
+                    Login
+                </button>
+            </div>
+        ) : (
+            <div>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "20px" }}>
+                    <h2 style={{ margin: 0 }}>⚙️ Admin Panel — Users</h2>
+                    <button
+                        onClick={handleLogout}
+                        style={{ padding: "8px 20px", backgroundColor: "#e74c3c", color: "white", border: "none", borderRadius: "5px", cursor: "pointer" }}
+                    >
+                        Logout
+                    </button>
+                </div>
 
+                <table style={{ width: "100%", borderCollapse: "collapse" }}>
+                    <thead>
+                        <tr style={{ backgroundColor: "#2c3e50", color: "white" }}>
+                            <th style={{ padding: "10px", textAlign: "left" }}>Name</th>
+                            <th style={{ padding: "10px", textAlign: "left" }}>Email</th>
+                            <th style={{ padding: "10px", textAlign: "left" }}>Plan</th>
+                            <th style={{ padding: "10px", textAlign: "left" }}>Status</th>
+                            <th style={{ padding: "10px", textAlign: "left" }}>API Keys</th>
+                            <th style={{ padding: "10px", textAlign: "left" }}>Joined</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {users.map((u, i) => (
+                            <tr key={i} style={{ backgroundColor: i % 2 === 0 ? "#f9f9f9" : "white" }}>
+                                <td style={{ padding: "8px" }}>{u.name}</td>
+                                <td style={{ padding: "8px" }}>{u.email}</td>
+                                <td style={{ padding: "8px" }}>
+                                    <span style={{ backgroundColor: u.plan === "free" ? "#3498db" : "#27ae60", color: "white", padding: "3px 8px", borderRadius: "10px", fontSize: "12px" }}>
+                                        {u.plan}
+                                    </span>
+                                </td>
+                                <td style={{ padding: "8px" }}>
+                                    <span style={{ backgroundColor: u.status === "active" ? "#27ae60" : "#e74c3c", color: "white", padding: "3px 8px", borderRadius: "10px", fontSize: "12px" }}>
+                                        {u.status}
+                                    </span>
+                                </td>
+                                <td style={{ padding: "8px" }}>{u.api_keys}</td>
+                                <td style={{ padding: "8px" }}>{new Date(u.created_at).toLocaleDateString()}</td>
+                            </tr>
+                        ))}
+                    </tbody>
+                </table>
+            </div>
+        )}
+    </div>
+)}
+    {/* ── DEMO FORM TAB ── */}
+{activeTab === "demo" && (
+    <DemoForm />
+)}
     </div>
   )
 }
