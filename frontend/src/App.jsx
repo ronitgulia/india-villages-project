@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react"
 import axios from "axios"
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from "recharts"
+import DemoForm from "./DemoForm"
 
 const API = "https://india-villages-project-h4ou.vercel.app"
 
@@ -111,6 +112,7 @@ const handleLogout = () => {
         <button style={tabStyle("browse")}    onClick={() => setActiveTab("browse")}>🗺️ Browse</button>
         <button style={tabStyle("search")}    onClick={() => setActiveTab("search")}>🔍 Search</button>
         <button style={tabStyle("admin")} onClick={() => { setActiveTab("admin"); loadUsers() }}>⚙️ Admin</button>
+        <button style={tabStyle("demo")} onClick={() => setActiveTab("demo")}>📝 Demo Form</button>
       </div>
 
       {/* ── DASHBOARD TAB ── */}
@@ -319,6 +321,10 @@ const handleLogout = () => {
             </div>
         )}
     </div>
+)}
+    {/* ── DEMO FORM TAB ── */}
+{activeTab === "demo" && (
+    <DemoForm />
 )}
     </div>
   )
