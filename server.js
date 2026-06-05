@@ -14,6 +14,14 @@ const db = new Pool({
 
 app.use(cors())
 app.use(express.json())
+
+const rateLimit = require('express-rate-limit')
+const limiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 min
+  max: 100
+})
+app.use('/api/', limiter)
+
 const authRoutes = require("./auth")
 app.use("/api/auth", authRoutes)
 const keyRoutes = require("./apikeys")
@@ -62,7 +70,7 @@ app.get("/api/districts", async (req, res) => {
 
 // ── ROUTE 4: Get villages by state ────────────────────────
 app.get("/api/villages", async (req, res) => {
-    const { state, district, limit = 100 } = req.query
+    const { state, district, page = 1, limit = 50 } = req.query
     if (!state) {
         return res.json({ error: "Please provide state. Example: /api/villages?state=Rajasthan" })
     }
@@ -75,16 +83,19 @@ app.get("/api/villages", async (req, res) => {
     const params = [state]
 
     if (district) {
-        query += ` AND district_name = $2`
         params.push(district)
+        query += ` AND district_name = $${params.length}`
     }
 
-    query += ` ORDER BY village_name LIMIT $${params.length + 1}`
+    query += ` ORDER BY village_name LIMIT $${params.length + 1} OFFSET $${params.length + 2}`
     params.push(parseInt(limit))
+    params.push((parseInt(page) - 1) * parseInt(limit))
 
     const result = await db.query(query, params)
     res.json({
         state: state,
+        page: parseInt(page),
+        limit: parseInt(limit),
         total: result.rows.length,
         villages: result.rows
     })
@@ -93,8 +104,8 @@ app.get("/api/villages", async (req, res) => {
 // ── ROUTE 5: Search villages by name ─────────────────────
 app.get("/api/search", async (req, res) => {
     const { name } = req.query
-    if (!name) {
-        return res.json({ error: "Please provide name. Example: /api/search?name=Rampur" })
+    if (!name || name.length < 2) {
+        return res.status(400).json({ error: "Minimum 2 characters required" })
     }
     const result = await db.query(`
         SELECT village_name, subdistrict_name, district_name, state_name

@@ -10,7 +10,7 @@ const db = new Pool({
     ssl: { rejectUnauthorized: false }
 })
 
-const JWT_SECRET = process.env.JWT_SECRET || "india_villages_secret_key"
+const JWT_SECRET = process.env.JWT_SECRET
 
 // ── Create users table if not exists ─────────────────────
 async function createUsersTable() {
