@@ -73,6 +73,24 @@ india-villages-project/
 │   ├── step3_load_database.py
 │   └── step4_sql_queries.py
 └── README.md
+## Local Setup
+
+```bash
+git clone https://github.com/ronitgulia/india-villages-project.git
+cd backend && npm install
+cp .env.example .env   # fill in DB credentials
+node setup_db.js
+node import_data.js
+node server.js
+```
+
+## API Authentication
+
+```bash
+curl -H "Authorization: Bearer YOUR_API_KEY" \
+  https://india-villages-project-h4ou.vercel.app/api/villages?state=Delhi
+```
+
 ## Developer
 
 **Ronit Gulia**
