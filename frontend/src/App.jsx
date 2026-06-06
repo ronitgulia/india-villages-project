@@ -5,6 +5,10 @@ import DemoForm from "./DemoForm"
 
 const API = "https://india-villages-project-h4ou.vercel.app"
 
+const SkeletonRow = () => (
+  <div className="skeleton" style={{ height: "40px", margin: "10px 0", borderRadius: "5px" }}></div>
+)
+
 function App() {
   const [stats, setStats]       = useState([])
   const [totals, setTotals]     = useState({})
@@ -32,19 +36,19 @@ function App() {
     const total_villages = res.data.data.reduce((sum, s) => sum + parseInt(s.village_count), 0)
     setTotals({
       villages: total_villages.toLocaleString(),
-      states:   res.data.total_states,
+      states:   res.data.count,
     })
   }
 
   const loadStates = async () => {
     const res = await axios.get(`${API}/api/states`)
-    setStates(res.data.states)
+    setStates(res.data.data)
   }
 
   const loadVillages = async (stateName) => {
     setLoading(true)
     const res = await axios.get(`${API}/api/villages?state=${stateName}&limit=200`)
-    setVillages(res.data.villages)
+    setVillages(res.data.data)
     setLoading(false)
   }
 
@@ -52,7 +56,7 @@ function App() {
     if (!search) return
     setLoading(true)
     const res = await axios.get(`${API}/api/search?name=${search}`)
-    setResults(res.data.results)
+    setResults(res.data.data)
     setLoading(false)
   }
 
@@ -78,7 +82,7 @@ const loadUsers = async () => {
     const res = await axios.get(`${API}/api/admin/users`, {
         headers: { Authorization: `Bearer ${token}` }
     })
-    setUsers(res.data.users)
+    setUsers(res.data.data)
 }
 
 const handleLogout = () => {
@@ -107,7 +111,7 @@ const handleLogout = () => {
       </div>
 
       {/* ── TABS ── */}
-      <div style={{ marginBottom: "20px" }}>
+      <div style={{ marginBottom: "20px", display: "flex", flexWrap: "wrap", gap: "10px" }}>
         <button style={tabStyle("dashboard")} onClick={() => setActiveTab("dashboard")}>📊 Dashboard</button>
         <button style={tabStyle("browse")}    onClick={() => setActiveTab("browse")}>🗺️ Browse</button>
         <button style={tabStyle("search")}    onClick={() => setActiveTab("search")}>🔍 Search</button>
@@ -119,20 +123,20 @@ const handleLogout = () => {
       {activeTab === "dashboard" && (
         <div>
           {/* Stats Cards */}
-          <div style={{ display: "flex", gap: "20px", marginBottom: "30px" }}>
-            <div style={{ flex: 1, backgroundColor: "#3498db", color: "white", padding: "20px", borderRadius: "10px", textAlign: "center" }}>
-              <h2 style={{ margin: 0, fontSize: "36px" }}>{totals.villages}</h2>
+          <div style={{ display: "flex", flexWrap: "wrap", gap: "20px", marginBottom: "30px" }}>
+            <div style={{ flex: "1 1 200px", backgroundColor: "#3498db", color: "white", padding: "20px", borderRadius: "10px", textAlign: "center" }}>
+              <h2 style={{ margin: 0, fontSize: "36px" }}>{totals.villages || 0}</h2>
               <p style={{ margin: "5px 0 0 0" }}>Total Villages</p>
             </div>
-            <div style={{ flex: 1, backgroundColor: "#27ae60", color: "white", padding: "20px", borderRadius: "10px", textAlign: "center" }}>
-              <h2 style={{ margin: 0, fontSize: "36px" }}>{totals.states}</h2>
+            <div style={{ flex: "1 1 200px", backgroundColor: "#27ae60", color: "white", padding: "20px", borderRadius: "10px", textAlign: "center" }}>
+              <h2 style={{ margin: 0, fontSize: "36px" }}>{totals.states || 0}</h2>
               <p style={{ margin: "5px 0 0 0" }}>States & UTs</p>
             </div>
-            <div style={{ flex: 1, backgroundColor: "#e74c3c", color: "white", padding: "20px", borderRadius: "10px", textAlign: "center" }}>
+            <div style={{ flex: "1 1 200px", backgroundColor: "#e74c3c", color: "white", padding: "20px", borderRadius: "10px", textAlign: "center" }}>
               <h2 style={{ margin: 0, fontSize: "36px" }}>6</h2>
               <p style={{ margin: "5px 0 0 0" }}>API Routes</p>
             </div>
-            <div style={{ flex: 1, backgroundColor: "#9b59b6", color: "white", padding: "20px", borderRadius: "10px", textAlign: "center" }}>
+            <div style={{ flex: "1 1 200px", backgroundColor: "#9b59b6", color: "white", padding: "20px", borderRadius: "10px", textAlign: "center" }}>
               <h2 style={{ margin: 0, fontSize: "36px" }}>Live</h2>
               <p style={{ margin: "5px 0 0 0" }}>API Status</p>
             </div>
@@ -160,7 +164,7 @@ const handleLogout = () => {
           <h2>Browse by State</h2>
           <select
             onChange={(e) => loadVillages(e.target.value)}
-            style={{ padding: "10px", fontSize: "16px", width: "300px", marginBottom: "20px" }}
+            style={{ padding: "10px", fontSize: "16px", width: "100%", maxWidth: "300px", marginBottom: "20px" }}
           >
             <option value="">-- Select State --</option>
             {states.map((s, i) => (
@@ -168,10 +172,16 @@ const handleLogout = () => {
             ))}
           </select>
 
-          {loading && <p>Loading...</p>}
-
-          {villages.length > 0 && (
+          {loading && (
             <div>
+              <SkeletonRow />
+              <SkeletonRow />
+              <SkeletonRow />
+            </div>
+          )}
+
+          {!loading && villages.length > 0 && (
+            <div style={{ overflowX: "auto" }}>
               <p style={{ color: "gray" }}>Showing {villages.length} villages</p>
               <table style={{ width: "100%", borderCollapse: "collapse" }}>
                 <thead>
@@ -200,14 +210,14 @@ const handleLogout = () => {
       {activeTab === "search" && (
         <div>
           <h2>Search Villages</h2>
-          <div style={{ display: "flex", gap: "10px", marginBottom: "20px" }}>
+          <div style={{ display: "flex", flexWrap: "wrap", gap: "10px", marginBottom: "20px" }}>
             <input
               type="text"
               placeholder="Type village name e.g. Rampur"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && searchVillages()}
-              style={{ padding: "10px", fontSize: "16px", width: "350px", borderRadius: "5px", border: "1px solid #ddd" }}
+              style={{ padding: "10px", fontSize: "16px", flex: "1 1 250px", borderRadius: "5px", border: "1px solid #ddd" }}
             />
             <button
               onClick={searchVillages}
@@ -217,10 +227,16 @@ const handleLogout = () => {
             </button>
           </div>
 
-          {loading && <p>Loading...</p>}
-
-          {results.length > 0 && (
+          {loading && (
             <div>
+              <SkeletonRow />
+              <SkeletonRow />
+              <SkeletonRow />
+            </div>
+          )}
+
+          {!loading && results.length > 0 && (
+            <div style={{ overflowX: "auto" }}>
               <p style={{ color: "gray" }}>{results.length} villages found</p>
               <table style={{ width: "100%", borderCollapse: "collapse" }}>
                 <thead>

@@ -91,10 +91,26 @@ curl -H "Authorization: Bearer YOUR_API_KEY" \
   https://india-villages-project-h4ou.vercel.app/api/villages?state=Delhi
 ```
 
+## Screenshots
+
+> **Note:** Add actual screenshots of the dashboard here.
+> 
+> ![Dashboard Overview](./docs/screenshots/dashboard.png)
+> ![Search Interface](./docs/screenshots/search.png)
+
 ## Developer
 
 **Ronit Gulia**
 B.Tech AIML Student
+
+## Contributing
+
+We welcome contributions! Please follow these guidelines:
+1. Fork the repository.
+2. Create a new branch for your feature (`git checkout -b feature/AmazingFeature`).
+3. Commit your changes (`git commit -m 'Add some AmazingFeature'`).
+4. Push to the branch (`git push origin feature/AmazingFeature`).
+5. Open a Pull Request.
 
 ## 📄 Data Source
 

@@ -62,12 +62,12 @@ async function setupDatabase() {
         `)
         console.log("✅ villages table created")
 
-        // Create index for fast village name search
+        // Create indexes for fast search
         await pool.query(`
-            CREATE INDEX IF NOT EXISTS idx_village_name 
-            ON villages(village_name)
+            CREATE INDEX IF NOT EXISTS idx_village_name ON villages(village_name);
+            CREATE INDEX IF NOT EXISTS idx_state ON villages(state_name);
         `)
-        console.log("✅ search index created")
+        console.log("✅ search indexes created")
 
         console.log("\n✅ All tables ready in NeonDB!")
         pool.end()

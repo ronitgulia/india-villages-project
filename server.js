@@ -44,8 +44,10 @@ app.get("/api/states", async (req, res) => {
         ORDER BY state_name
     `)
     res.json({
-        total: result.rows.length,
-        states: result.rows
+        success: true,
+        count: result.rows.length,
+        page: 1,
+        data: result.rows
     })
 })
 
@@ -53,7 +55,7 @@ app.get("/api/states", async (req, res) => {
 app.get("/api/districts", async (req, res) => {
     const { state } = req.query
     if (!state) {
-        return res.json({ error: "Please provide state name. Example: /api/districts?state=Rajasthan" })
+        return res.status(400).json({ success: false, error: "Please provide state name. Example: /api/districts?state=Rajasthan" })
     }
     const result = await db.query(`
         SELECT DISTINCT district_name, district_code
@@ -62,9 +64,30 @@ app.get("/api/districts", async (req, res) => {
         ORDER BY district_name
     `, [state])
     res.json({
-        state: state,
-        total: result.rows.length,
-        districts: result.rows
+        success: true,
+        count: result.rows.length,
+        page: 1,
+        data: result.rows
+    })
+})
+
+// ── NEW: Get subdistricts by district ──────────────────────
+app.get("/api/subdistricts", async (req, res) => {
+    const { district } = req.query
+    if (!district) {
+        return res.status(400).json({ success: false, error: "Please provide district name. Example: /api/subdistricts?district=Jaipur" })
+    }
+    const result = await db.query(`
+        SELECT DISTINCT subdistrict_name, subdistrict_code
+        FROM villages
+        WHERE district_name = $1
+        ORDER BY subdistrict_name
+    `, [district])
+    res.json({
+        success: true,
+        count: result.rows.length,
+        page: 1,
+        data: result.rows
     })
 })
 
@@ -72,11 +95,11 @@ app.get("/api/districts", async (req, res) => {
 app.get("/api/villages", async (req, res) => {
     const { state, district, page = 1, limit = 50 } = req.query
     if (!state) {
-        return res.json({ error: "Please provide state. Example: /api/villages?state=Rajasthan" })
+        return res.status(400).json({ success: false, error: "Please provide state. Example: /api/villages?state=Rajasthan" })
     }
 
     let query = `
-        SELECT village_name, subdistrict_name, district_name, state_name
+        SELECT id, village_code, village_name, subdistrict_name, district_name, state_name
         FROM villages
         WHERE state_name = $1
     `
@@ -93,11 +116,29 @@ app.get("/api/villages", async (req, res) => {
 
     const result = await db.query(query, params)
     res.json({
-        state: state,
+        success: true,
+        count: result.rows.length,
         page: parseInt(page),
-        limit: parseInt(limit),
-        total: result.rows.length,
-        villages: result.rows
+        data: result.rows
+    })
+})
+
+// ── NEW: Get single village by ID ────────────────────────
+app.get("/api/villages/:id", async (req, res) => {
+    const { id } = req.params
+    const result = await db.query(`
+        SELECT id, village_code, village_name, subdistrict_name, district_name, state_name
+        FROM villages
+        WHERE id = $1
+    `, [id])
+    if (result.rows.length === 0) {
+        return res.status(404).json({ success: false, error: "Village not found" })
+    }
+    res.json({
+        success: true,
+        count: 1,
+        page: 1,
+        data: result.rows[0]
     })
 })
 
@@ -105,19 +146,38 @@ app.get("/api/villages", async (req, res) => {
 app.get("/api/search", async (req, res) => {
     const { name } = req.query
     if (!name || name.length < 2) {
-        return res.status(400).json({ error: "Minimum 2 characters required" })
+        return res.status(400).json({ success: false, error: "Minimum 2 characters required" })
     }
     const result = await db.query(`
-        SELECT village_name, subdistrict_name, district_name, state_name
+        SELECT id, village_code, village_name, subdistrict_name, district_name, state_name
         FROM villages
         WHERE village_name ILIKE $1
         ORDER BY village_name
         LIMIT 50
     `, [`%${name}%`])
     res.json({
-        search: name,
-        total_found: result.rows.length,
-        results: result.rows
+        success: true,
+        count: result.rows.length,
+        page: 1,
+        data: result.rows
+    })
+})
+
+// ── NEW: Location based search (Mocked) ───────────────────
+app.get("/api/nearby", async (req, res) => {
+    const { lat, lng } = req.query
+    if (!lat || !lng) {
+        return res.status(400).json({ success: false, error: "Please provide lat and lng" })
+    }
+    // Since the current database schema does not have lat/lng columns, we return mock data for demonstration.
+    res.json({
+        success: true,
+        count: 2,
+        page: 1,
+        data: [
+            { id: 1, village_name: "Mock Village 1", distance_km: 1.2 },
+            { id: 2, village_name: "Mock Village 2", distance_km: 3.5 }
+        ]
     })
 })
 
@@ -130,7 +190,9 @@ app.get("/api/stats", async (req, res) => {
         ORDER BY village_count DESC
     `)
     res.json({
-        total_states: result.rows.length,
+        success: true,
+        count: result.rows.length,
+        page: 1,
         data: result.rows
     })
 })
@@ -146,7 +208,12 @@ app.get("/api/admin/users", async (req, res) => {
         GROUP BY u.id
         ORDER BY u.created_at DESC
     `)
-    res.json({ success: true, users: result.rows })
+    res.json({ 
+        success: true, 
+        count: result.rows.length,
+        page: 1,
+        data: result.rows 
+    })
 })
 app.listen(PORT, () => {
     console.log(`🚀 Server running at http://localhost:${PORT}`)
